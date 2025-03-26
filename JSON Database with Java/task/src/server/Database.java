@@ -1,9 +1,6 @@
 package server;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import shared.Response;
 
 import java.io.*;
@@ -21,34 +18,87 @@ public class Database {
         database = restoreDatabase();
     }
 
-    protected Response set(String key, String value) {
-        database.addProperty(key, value);
+    protected Response set(JsonElement key, JsonElement value) {
+        if (key.isJsonPrimitive()) {
+            database.add(key.getAsString(), value);
+        } else {
+            JsonArray keys = key.getAsJsonArray();
+            JsonElement dbLevel = database;
+
+            for (int i = 0; i < keys.size() - 1; i++) {
+                if (!dbLevel.getAsJsonObject().has(keys.get(i).getAsString())) {
+                    dbLevel.getAsJsonObject().add(keys.get(i).getAsString(), new JsonObject());
+                }
+                dbLevel = dbLevel.getAsJsonObject().get(keys.get(i).getAsString());
+            }
+            database.add(keys.get(keys.size() - 1).getAsString(), value);
+        }
+
         persistDatabase();
         return new Response(Response.STATUS.OK);
     }
 
-    protected Response get(String key) {
-        if (database.has(key)) {
-            Response response = new Response(Response.STATUS.OK);
-            response.setValue(database.get(key).toString());
-            return response;
-        } else {
-            Response response = new Response(Response.STATUS.ERROR);
-            response.setReason("No such key");
-            return response;
+    protected Response get(JsonElement key) {
+        if (key.isJsonPrimitive()) {
+            return getPrimitiveValue(key);
         }
+        return getJsonValue(key);
     }
 
-    protected Response delete(String key) {
-        if (database.has(key)) {
-            database.remove(key);
-            persistDatabase();
-            return new Response(Response.STATUS.OK);
-        } else {
-            Response response = new Response(Response.STATUS.ERROR);
-            response.setReason("No such key");
+    protected Response getPrimitiveValue(JsonElement key) {
+        if (database.has(key.getAsString())) {
+            Response response = new Response(Response.STATUS.OK);
+            response.setValue(database.get(key.getAsString()).toString());
             return response;
         }
+        return noKeyErrorResponse();
+    }
+
+    protected Response getJsonValue(JsonElement key) {
+        JsonArray keys = key.getAsJsonArray();
+        JsonElement dbLevel = database;
+
+        for (JsonElement jsonKey : keys) {
+            if (!dbLevel.isJsonPrimitive() && dbLevel.getAsJsonObject().has(jsonKey.getAsString())) {
+                dbLevel = dbLevel.getAsJsonObject().get(jsonKey.getAsString());
+            } else {
+                return noKeyErrorResponse();
+            }
+        }
+
+        Response response = new Response(Response.STATUS.OK);
+        response.setValue(dbLevel.getAsString());
+        return response;
+    }
+
+    protected Response delete(JsonElement key) {
+        if (key.isJsonPrimitive()) {
+            if (database.has(key.getAsString())) {
+                database.remove(key.getAsString());
+            } else {
+                return noKeyErrorResponse();
+            }
+        } else {
+            JsonArray keys = key.getAsJsonArray();
+            JsonElement dbLevel = database;
+
+            for (int i = 0; i < keys.size() - 1; i++) {
+                if (dbLevel.getAsJsonObject().has(keys.get(i).getAsString())) {
+                    dbLevel = dbLevel.getAsJsonObject().get(keys.get(i).getAsString());
+                } else {
+                    return noKeyErrorResponse();
+                }
+            }
+            dbLevel.getAsJsonObject().remove(keys.get(keys.size() - 1).getAsString());
+        }
+        persistDatabase();
+        return new Response(Response.STATUS.OK);
+    }
+
+    private Response noKeyErrorResponse() {
+        Response response = new Response(Response.STATUS.ERROR);
+        response.setReason("No such key");
+        return response;
     }
 
     private void persistDatabase() {
