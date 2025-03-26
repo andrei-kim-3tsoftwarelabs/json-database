@@ -3,6 +3,7 @@ package server;
 import com.google.gson.Gson;
 import shared.Arguments;
 import shared.Response;
+import shared.SocketConfig;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -12,14 +13,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Main {
-    private static String address = "127.0.0.1";
-    private static int port = 23456;
-    private ServerSocket socket;
-
     public static void main(String[] args) {
         Database database = new Database();
 
-        try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address))) {
+        try (ServerSocket server = new ServerSocket(SocketConfig.getPort(), 50, InetAddress.getByName(SocketConfig.getAddress()))) {
             boolean isRunning = true;
             System.out.println("Server started!");
 
@@ -67,29 +64,5 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    protected static String[] formatInput(String input) {
-        String type = "";
-        String index = "";
-        String message = "";
-
-        String[] splitArgs = input.split(" ");
-
-        type = splitArgs[0];
-
-        if (type.equals("exit")) {
-            return new String[]{type};
-        }
-
-        index = splitArgs[1];
-
-        if (type.equals("set")) {
-            int indexPlace = input.indexOf(index);
-            message = input.substring(indexPlace + index.length(), input.length()).trim();
-            return new String[]{type, index, message};
-        }
-
-        return new String[]{type, index};
     }
 }
