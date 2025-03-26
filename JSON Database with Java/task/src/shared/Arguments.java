@@ -9,6 +9,8 @@ public class Arguments {
     private String key;
     @Parameter(names = "-v", description = "specifies the value (only needed for set requests)")
     private String value;
+    @Parameter(names = "-in", description = "specifies the input file for request")
+    private String filename;
 
     public String getType() {
         return type;
@@ -20,5 +22,13 @@ public class Arguments {
 
     public String getValue() {
         return value;
+    }
+
+    public boolean isFileForRequestProvided() {
+        return filename != null;
+    }
+
+    public String getFilename() {
+        return filename;
     }
 }

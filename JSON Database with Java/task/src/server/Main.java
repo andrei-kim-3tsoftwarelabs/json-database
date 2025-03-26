@@ -1,66 +1,29 @@
 package server;
 
-import com.google.gson.Gson;
-import shared.Arguments;
-import shared.Response;
 import shared.SocketConfig;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Main {
     public static void main(String[] args) {
         Database database = new Database();
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+        CountDownLatch latch = new CountDownLatch(1);
+
 
         try (ServerSocket server = new ServerSocket(SocketConfig.getPort(), 50, InetAddress.getByName(SocketConfig.getAddress()))) {
-            boolean isRunning = true;
             System.out.println("Server started!");
 
-            while (isRunning) {
-                Socket socket = server.accept();
-                try (DataInputStream input = new DataInputStream(socket.getInputStream());
-                     DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-                ) {
-                    String receivedMessage = input.readUTF();
-                    System.out.println("Received: " + receivedMessage);
-
-                    Gson gson = new Gson();
-
-                    Arguments command = gson.fromJson(receivedMessage, Arguments.class);
-
-                    Response response;
-
-                    switch (command.getType()) {
-                        case "get": {
-                            response = database.get(command.getKey());
-                            break;
-                        }
-                        case "set": {
-                            response = database.set(command.getKey(), command.getValue());
-                            break;
-                        }
-                        case "delete": {
-                            response = database.delete(command.getKey());
-                            break;
-                        }
-                        case "exit": {
-                            response = new Response(Response.STATUS.OK);
-                            isRunning = false;
-                            break;
-                        }
-                        default: {
-                            response = new Response(Response.STATUS.ERROR);
-                        }
-                    }
-
-                    output.writeUTF(gson.toJson(response));
-                    System.out.println("Sent: " + gson.toJson(response));
-                }
+            while (latch.getCount() > 0) {
+                Session session = new Session(server.accept(), lock, database, latch);
+                session.start();
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
