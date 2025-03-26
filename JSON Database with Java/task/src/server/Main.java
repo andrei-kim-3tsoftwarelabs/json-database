@@ -1,13 +1,15 @@
 package server;
 
+import com.google.gson.Gson;
+import shared.Arguments;
+import shared.Response;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.Scanner;
 
 public class Main {
     private static String address = "127.0.0.1";
@@ -29,35 +31,37 @@ public class Main {
                     String receivedMessage = input.readUTF();
                     System.out.println("Received: " + receivedMessage);
 
-                    String[] inputCommands = formatInput(receivedMessage);
+                    Gson gson = new Gson();
 
-                    String response = "";
+                    Arguments command = gson.fromJson(receivedMessage, Arguments.class);
 
-                    switch (inputCommands[0]) {
+                    Response response;
+
+                    switch (command.getType()) {
                         case "get": {
-                            response = database.get(Integer.parseInt(inputCommands[1]));
+                            response = database.get(command.getKey());
                             break;
                         }
                         case "set": {
-                            response = database.set(Integer.parseInt(inputCommands[1]), inputCommands[2]);
+                            response = database.set(command.getKey(), command.getValue());
                             break;
                         }
                         case "delete": {
-                            response = database.delete(Integer.parseInt(inputCommands[1]));
+                            response = database.delete(command.getKey());
                             break;
                         }
                         case "exit": {
-                            response = "OK";
+                            response = new Response(Response.STATUS.OK);
                             isRunning = false;
                             break;
                         }
                         default: {
-                            response = "ERROR";
+                            response = new Response(Response.STATUS.ERROR);
                         }
                     }
 
-                    output.writeUTF(response);
-                    System.out.println("Sent: " + response);
+                    output.writeUTF(gson.toJson(response));
+                    System.out.println("Sent: " + gson.toJson(response));
                 }
             }
         } catch (IOException e) {

@@ -1,48 +1,40 @@
 package server;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import com.google.gson.JsonObject;
+import shared.Response;
 
 public class Database {
-    private final int ARRAY_SIZE = 1000;
-    private String[] data;
+    private JsonObject data;
 
     Database() {
-        data = new String[ARRAY_SIZE];
-        Arrays.fill(data, "");
+        data = new JsonObject();
     }
 
-    protected String set(int index, String value) {
-        if (boundCheck(index)) {
-            data[index] = value;
-            return "OK";
+    protected Response set(String key, String value) {
+        data.addProperty(key, value);
+        return new Response(Response.STATUS.OK);
+    }
+
+    protected Response get(String key) {
+        if (data.has(key)) {
+            Response response = new Response(Response.STATUS.OK);
+            response.setValue(data.get(key).toString());
+            return response;
         } else {
-            return "ERROR";
+            Response response = new Response(Response.STATUS.ERROR);
+            response.setReason("No such key");
+            return response;
         }
-    };
+    }
 
-    protected String get(int index) {
-        if (boundCheck(index)) {
-            return data[index];
+    protected Response delete(String key) {
+        if (data.has(key)) {
+            data.remove(key);
+            return new Response(Response.STATUS.OK);
         } else {
-            return "ERROR";
+            Response response = new Response(Response.STATUS.ERROR);
+            response.setReason("No such key");
+            return response;
         }
-    };
-
-    protected String delete(int index) {
-        if (boundCheck(index)) {
-            data[index] = "";
-            return "OK";
-        } else {
-            return "ERROR";
-        }
-    };
-
-    private boolean boundCheck(int index) {
-        if (index < 0 || index >= ARRAY_SIZE) {
-            return false;
-        }
-
-        return !"".equals(data[index]);
     }
 }
